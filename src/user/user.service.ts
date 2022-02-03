@@ -4,7 +4,8 @@ https://docs.nestjs.com/providers#services
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-
+import * as bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
 @Injectable()
 export class UserService {
 
@@ -30,10 +31,13 @@ export class UserService {
             throw new NotFoundException("User not found");
         }
 
+        delete user.password;
+
+
         return user;
     }
 
-    async getByEmail(email: string) {
+    async getByEmail(email: string, hash: boolean = false) {
         if (!email) {
             throw new BadRequestException("E-mail is required");
         }
@@ -49,6 +53,10 @@ export class UserService {
 
         if (!user) {
             throw new NotFoundException("User not found");
+        }
+
+        if (!hash) {
+            delete user.password;
         }
 
         return user;
@@ -95,7 +103,7 @@ export class UserService {
             throw new BadRequestException("E-mail already exists");
         }
 
-        return this.prisma.users.create({
+        const userCreated = await this.prisma.users.create({
             data: {
                 persons: {
                     create: {
@@ -106,11 +114,88 @@ export class UserService {
                     }
                 },
                 email,
-                password
+                password: bcrypt.hashSync(password, 10)
             },
             include: {
                 persons: true
             }
-        })
+        });
+
+        delete userCreated.password;
+
+        return userCreated;
+    }
+
+    async update(id: number, { name,
+        email,
+        birthAt,
+        phone,
+        document }
+        :
+        {
+            name?: string;
+            email?: string;
+            birthAt?: Date;
+            phone?: string;
+            document?: string
+        }) {
+
+        id = Number(id);
+
+        if (isNaN(id)) {
+            throw new BadRequestException("ID is required");
+        }
+
+        let user = null;
+        try {
+            user = await this.get(id);
+        } catch (e) { }
+
+        if (!user) {
+            throw new BadRequestException("User not found");
+        }
+
+        const dataPerson = {} as Prisma.personsUpdateInput;
+        const dataUser = {} as Prisma.usersUpdateInput;
+
+        if (name) {
+            dataPerson.name = name;
+        }
+
+        if (birthAt) {
+            dataPerson.birthAt = birthAt;
+        }
+
+        if (phone) {
+            dataPerson.phone = phone;
+        }
+
+        if (document) {
+            dataPerson.document = document;
+        }
+
+        if (email) {
+            dataUser.email = email;
+        }
+
+        if (dataPerson) {
+            await this.prisma.persons.update({
+                where: {
+                    id: user.persons.id
+                },
+                data: dataPerson
+            });
+        }
+
+        if (dataUser) {
+            await this.prisma.users.update({
+                where: {
+                    id
+                },
+                data: dataUser
+            });
+        }
+
+        return this.get(id);
     }
 }
