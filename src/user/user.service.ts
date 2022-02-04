@@ -2,7 +2,7 @@
 https://docs.nestjs.com/providers#services
 */
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
@@ -11,7 +11,7 @@ export class UserService {
 
     constructor(private prisma: PrismaService) { }
 
-    async get(id: number) {
+    async get(id: number, hash: boolean = false) {
         id = Number(id);
 
         if (isNaN(id)) {
@@ -31,8 +31,9 @@ export class UserService {
             throw new NotFoundException("User not found");
         }
 
-        delete user.password;
-
+        if (!hash) {
+            delete user.password;
+        }
 
         return user;
     }
@@ -197,5 +198,39 @@ export class UserService {
         }
 
         return this.get(id);
+    }
+
+    async changePassword(id: number, currentPassword: string, newPassword: string) {
+
+        if (!newPassword) {
+            throw new BadRequestException("New password is required");
+        }
+
+        const user = await this.get(id, true);
+
+        const checked = await bcrypt.compare(currentPassword, user.password);
+
+        if (!checked) {
+            throw new UnauthorizedException("Current password is invalid");
+        }
+
+        return this.updatePassword(user.id, newPassword);
+    }
+
+    async updatePassword(id: number, password: string) {
+        const user = await this.get(id, true);
+
+        const userUpdated = await this.prisma.users.update({
+            where: {
+                id
+            },
+            data: {
+                password: bcrypt.hashSync(password, 10)
+            }
+        });
+
+        delete userUpdated.password;
+
+        return userUpdated;
     }
 }
