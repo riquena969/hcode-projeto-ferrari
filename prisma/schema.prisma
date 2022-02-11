@@ -25,14 +25,27 @@ model persons {
 }
 
 model users {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique(map: "UQ_97672ac88f789774dd47f7c8be3") @db.VarChar(250)
-  password  String   @db.VarChar(250)
-  photo     String?  @db.VarChar(255)
-  personId  Int?
-  createdAt DateTime @default(now()) @db.DateTime(0)
-  updatedAt DateTime @default(now()) @db.DateTime(0)
-  persons   persons? @relation(fields: [personId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_users_persons")
+  id                  Int                   @id @default(autoincrement())
+  email               String                @unique(map: "UQ_97672ac88f789774dd47f7c8be3") @db.VarChar(250)
+  password            String                @db.VarChar(250)
+  photo               String?               @db.VarChar(255)
+  personId            Int?
+  createdAt           DateTime              @default(now()) @db.DateTime(0)
+  updatedAt           DateTime              @default(now()) @db.DateTime(0)
+  persons             persons?              @relation(fields: [personId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_users_persons")
+  password_recoveries password_recoveries[]
 
   @@index([personId], map: "FK_users_persons")
+}
+
+model password_recoveries {
+  id        Int       @id @default(autoincrement())
+  token     String    @db.VarChar(255)
+  userId    Int
+  resetAt   DateTime? @db.DateTime(0)
+  createdAt DateTime? @default(now()) @db.DateTime(0)
+  updatedAt DateTime? @default(now()) @db.DateTime(0)
+  users     users     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_password_recoveries_users")
+
+  @@index([userId], map: "FK_password_recoveries_users")
 }

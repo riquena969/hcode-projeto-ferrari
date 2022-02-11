@@ -4,7 +4,6 @@ https://docs.nestjs.com/controllers#controllers
 
 import { BadRequestException, Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { parse } from 'date-fns';
-import { id } from 'date-fns/locale';
 import { UserService } from './user.service';
 
 @Controller('users')

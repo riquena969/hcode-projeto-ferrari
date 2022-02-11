@@ -6,10 +6,13 @@ import { BadRequestException, Injectable, NotFoundException, UnauthorizedExcepti
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
+import { MailService } from 'src/mail/mail.service';
+import { createReadStream } from 'fs';
+import { join } from 'path';
 @Injectable()
 export class UserService {
 
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService, private mailService: MailService) { }
 
     async get(id: number, hash: boolean = false) {
         id = Number(id);
@@ -131,6 +134,7 @@ export class UserService {
         email,
         birthAt,
         phone,
+        photo,
         document }
         :
         {
@@ -138,6 +142,7 @@ export class UserService {
             email?: string;
             birthAt?: Date;
             phone?: string;
+            photo?: string;
             document?: string
         }) {
 
@@ -173,6 +178,10 @@ export class UserService {
 
         if (document) {
             dataPerson.document = document;
+        }
+
+        if (photo) {
+            dataUser.photo = photo;
         }
 
         if (email) {
@@ -231,6 +240,36 @@ export class UserService {
 
         delete userUpdated.password;
 
+        await this.mailService.send({
+            to: user.email,
+            subject: "Senha alterada com sucesso",
+            template: "reset-password-confirm",
+            data: {
+                name: user.persons.name
+            }
+        })
+
         return userUpdated;
+    }
+
+    async getPhoto(id: number) {
+        let { photo } = await this.get(id);
+
+        if (!photo) {
+            photo = "../no-photo.png";
+        }
+
+        const ext = photo.split('.').pop();
+
+        const file = createReadStream(this.getStoragePath(photo));
+
+        return {
+            file,
+            ext
+        }
+    }
+
+    getStoragePath(filename: string) {
+        return join(__dirname, '../', '../', '../', 'storage', 'photos', filename);
     }
 }
