@@ -6,12 +6,8 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 
 @Module({
-  imports: [
-    MailModule,
-    AuthModule,
-    UserModule,
-    PrismaModule,],
+  imports: [MailModule, AuthModule, UserModule, PrismaModule],
   controllers: [AppController],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {}

@@ -10,7 +10,7 @@ export const Auth = createParamDecorator(
 
     if (field) {
       if (request.auth[field]) {
-        return request.auth[field]
+        return request.auth[field];
       }
       return null;
     }

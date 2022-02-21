@@ -1,8 +1,9 @@
-/*
-https://docs.nestjs.com/providers#services
-*/
-
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
@@ -11,265 +12,271 @@ import { createReadStream } from 'fs';
 import { join } from 'path';
 @Injectable()
 export class UserService {
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+  ) {}
 
-    constructor(private prisma: PrismaService, private mailService: MailService) { }
+  async get(id: number, hash: boolean = false) {
+    id = Number(id);
 
-    async get(id: number, hash: boolean = false) {
-        id = Number(id);
-
-        if (isNaN(id)) {
-            throw new BadRequestException("ID is required");
-        }
-
-        let user = await this.prisma.users.findUnique({
-            where: {
-                id
-            },
-            include: {
-                persons: true
-            }
-        });
-
-        if (!user) {
-            throw new NotFoundException("User not found");
-        }
-
-        if (!hash) {
-            delete user.password;
-        }
-
-        return user;
+    if (isNaN(id)) {
+      throw new BadRequestException('ID is required');
     }
 
-    async getByEmail(email: string, hash: boolean = false) {
-        if (!email) {
-            throw new BadRequestException("E-mail is required");
-        }
+    let user = await this.prisma.users.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        persons: true,
+      },
+    });
 
-        let user = await this.prisma.users.findUnique({
-            where: {
-                email
-            },
-            include: {
-                persons: true
-            }
-        });
-
-        if (!user) {
-            throw new NotFoundException("User not found");
-        }
-
-        if (!hash) {
-            delete user.password;
-        }
-
-        return user;
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
-    async create({ name,
-        password,
+    if (!hash) {
+      delete user.password;
+    }
+
+    return user;
+  }
+
+  async getByEmail(email: string, hash: boolean = false) {
+    if (!email) {
+      throw new BadRequestException('E-mail is required');
+    }
+
+    let user = await this.prisma.users.findUnique({
+      where: {
         email,
-        birthAt,
-        phone,
-        document }
-        :
-        {
-            name: string;
-            email: string;
-            password: string;
-            birthAt?: Date;
-            phone?: string;
-            document?: string
-        }) {
+      },
+      include: {
+        persons: true,
+      },
+    });
 
-        if (!name) {
-            throw new BadRequestException("Name is required");
-        }
-
-        if (!email) {
-            throw new BadRequestException("E-mail is required");
-        }
-
-        if (!password) {
-            throw new BadRequestException("Password is required");
-        }
-
-        if (birthAt && birthAt.toString().toLowerCase() === 'invalid date') {
-            throw new BadRequestException("Birth date is invalid");
-        }
-
-        let user = null;
-        try {
-            user = await this.getByEmail(email);
-        } catch (e) { }
-
-        if (user) {
-            throw new BadRequestException("E-mail already exists");
-        }
-
-        const userCreated = await this.prisma.users.create({
-            data: {
-                persons: {
-                    create: {
-                        name,
-                        birthAt,
-                        phone,
-                        document,
-                    }
-                },
-                email,
-                password: bcrypt.hashSync(password, 10)
-            },
-            include: {
-                persons: true
-            }
-        });
-
-        delete userCreated.password;
-
-        return userCreated;
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
-    async update(id: number, { name,
+    if (!hash) {
+      delete user.password;
+    }
+
+    return user;
+  }
+
+  async create({
+    name,
+    password,
+    email,
+    birthAt,
+    phone,
+    document,
+  }: {
+    name: string;
+    email: string;
+    password: string;
+    birthAt?: Date;
+    phone?: string;
+    document?: string;
+  }) {
+    if (!name) {
+      throw new BadRequestException('Name is required');
+    }
+
+    if (!email) {
+      throw new BadRequestException('E-mail is required');
+    }
+
+    if (!password) {
+      throw new BadRequestException('Password is required');
+    }
+
+    if (birthAt && birthAt.toString().toLowerCase() === 'invalid date') {
+      throw new BadRequestException('Birth date is invalid');
+    }
+
+    let user = null;
+    try {
+      user = await this.getByEmail(email);
+    } catch (e) {}
+
+    if (user) {
+      throw new BadRequestException('E-mail already exists');
+    }
+
+    const userCreated = await this.prisma.users.create({
+      data: {
+        persons: {
+          create: {
+            name,
+            birthAt,
+            phone,
+            document,
+          },
+        },
         email,
-        birthAt,
-        phone,
-        photo,
-        document }
-        :
-        {
-            name?: string;
-            email?: string;
-            birthAt?: Date;
-            phone?: string;
-            photo?: string;
-            document?: string
-        }) {
+        password: bcrypt.hashSync(password, 10),
+      },
+      include: {
+        persons: true,
+      },
+    });
 
-        id = Number(id);
+    delete userCreated.password;
 
-        if (isNaN(id)) {
-            throw new BadRequestException("ID is required");
-        }
+    return userCreated;
+  }
 
-        let user = null;
-        try {
-            user = await this.get(id);
-        } catch (e) { }
+  async update(
+    id: number,
+    {
+      name,
+      email,
+      birthAt,
+      phone,
+      photo,
+      document,
+    }: {
+      name?: string;
+      email?: string;
+      birthAt?: Date;
+      phone?: string;
+      photo?: string;
+      document?: string;
+    },
+  ) {
+    id = Number(id);
 
-        if (!user) {
-            throw new BadRequestException("User not found");
-        }
-
-        const dataPerson = {} as Prisma.personsUpdateInput;
-        const dataUser = {} as Prisma.usersUpdateInput;
-
-        if (name) {
-            dataPerson.name = name;
-        }
-
-        if (birthAt) {
-            dataPerson.birthAt = birthAt;
-        }
-
-        if (phone) {
-            dataPerson.phone = phone;
-        }
-
-        if (document) {
-            dataPerson.document = document;
-        }
-
-        if (photo) {
-            dataUser.photo = photo;
-        }
-
-        if (email) {
-            dataUser.email = email;
-        }
-
-        if (dataPerson) {
-            await this.prisma.persons.update({
-                where: {
-                    id: user.persons.id
-                },
-                data: dataPerson
-            });
-        }
-
-        if (dataUser) {
-            await this.prisma.users.update({
-                where: {
-                    id
-                },
-                data: dataUser
-            });
-        }
-
-        return this.get(id);
+    if (isNaN(id)) {
+      throw new BadRequestException('ID is required');
     }
 
-    async changePassword(id: number, currentPassword: string, newPassword: string) {
+    let user = null;
+    try {
+      user = await this.get(id);
+    } catch (e) {}
 
-        if (!newPassword) {
-            throw new BadRequestException("New password is required");
-        }
-
-        const user = await this.get(id, true);
-
-        const checked = await bcrypt.compare(currentPassword, user.password);
-
-        if (!checked) {
-            throw new UnauthorizedException("Current password is invalid");
-        }
-
-        return this.updatePassword(user.id, newPassword);
+    if (!user) {
+      throw new BadRequestException('User not found');
     }
 
-    async updatePassword(id: number, password: string) {
-        const user = await this.get(id, true);
+    const dataPerson = {} as Prisma.personsUpdateInput;
+    const dataUser = {} as Prisma.usersUpdateInput;
 
-        const userUpdated = await this.prisma.users.update({
-            where: {
-                id
-            },
-            data: {
-                password: bcrypt.hashSync(password, 10)
-            }
-        });
-
-        delete userUpdated.password;
-
-        await this.mailService.send({
-            to: user.email,
-            subject: "Senha alterada com sucesso",
-            template: "reset-password-confirm",
-            data: {
-                name: user.persons.name
-            }
-        })
-
-        return userUpdated;
+    if (name) {
+      dataPerson.name = name;
     }
 
-    async getPhoto(id: number) {
-        let { photo } = await this.get(id);
-
-        if (!photo) {
-            photo = "../no-photo.png";
-        }
-
-        const ext = photo.split('.').pop();
-
-        const file = createReadStream(this.getStoragePath(photo));
-
-        return {
-            file,
-            ext
-        }
+    if (birthAt) {
+      dataPerson.birthAt = birthAt;
     }
 
-    getStoragePath(filename: string) {
-        return join(__dirname, '../', '../', '../', 'storage', 'photos', filename);
+    if (phone) {
+      dataPerson.phone = phone;
     }
+
+    if (document) {
+      dataPerson.document = document;
+    }
+
+    if (photo) {
+      dataUser.photo = photo;
+    }
+
+    if (email) {
+      dataUser.email = email;
+    }
+
+    if (dataPerson) {
+      await this.prisma.persons.update({
+        where: {
+          id: user.persons.id,
+        },
+        data: dataPerson,
+      });
+    }
+
+    if (dataUser) {
+      await this.prisma.users.update({
+        where: {
+          id,
+        },
+        data: dataUser,
+      });
+    }
+
+    return this.get(id);
+  }
+
+  async changePassword(
+    id: number,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (!newPassword) {
+      throw new BadRequestException('New password is required');
+    }
+
+    const user = await this.get(id, true);
+
+    const checked = await bcrypt.compare(currentPassword, user.password);
+
+    if (!checked) {
+      throw new UnauthorizedException('Current password is invalid');
+    }
+
+    return this.updatePassword(user.id, newPassword);
+  }
+
+  async updatePassword(id: number, password: string) {
+    const user = await this.get(id, true);
+
+    const userUpdated = await this.prisma.users.update({
+      where: {
+        id,
+      },
+      data: {
+        password: bcrypt.hashSync(password, 10),
+      },
+    });
+
+    delete userUpdated.password;
+
+    await this.mailService.send({
+      to: user.email,
+      subject: 'Senha alterada com sucesso',
+      template: 'reset-password-confirm',
+      data: {
+        name: user.persons.name,
+      },
+    });
+
+    return userUpdated;
+  }
+
+  async getPhoto(id: number) {
+    let { photo } = await this.get(id);
+
+    if (!photo) {
+      photo = '../no-photo.png';
+    }
+
+    const ext = photo.split('.').pop();
+
+    const file = createReadStream(this.getStoragePath(photo));
+
+    return {
+      file,
+      ext,
+    };
+  }
+
+  getStoragePath(filename: string) {
+    return join(__dirname, '../', '../', '../', 'storage', 'photos', filename);
+  }
 }

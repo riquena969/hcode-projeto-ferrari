@@ -10,7 +10,7 @@ export const User = createParamDecorator(
 
     if (field) {
       if (request.user[field]) {
-        return request.user[field]
+        return request.user[field];
       }
       return null;
     }
