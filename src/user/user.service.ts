@@ -2,20 +2,15 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
-import { MailService } from 'src/mail/mail.service';
 import { createReadStream } from 'fs';
 import { join } from 'path';
 @Injectable()
 export class UserService {
-  constructor(
-    private prisma: PrismaService,
-    private mailService: MailService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async get(id: number, hash: boolean = false) {
     id = Number(id);
@@ -211,52 +206,6 @@ export class UserService {
     }
 
     return this.get(id);
-  }
-
-  async changePassword(
-    id: number,
-    currentPassword: string,
-    newPassword: string,
-  ) {
-    if (!newPassword) {
-      throw new BadRequestException('New password is required');
-    }
-
-    const user = await this.get(id, true);
-
-    const checked = await bcrypt.compare(currentPassword, user.password);
-
-    if (!checked) {
-      throw new UnauthorizedException('Current password is invalid');
-    }
-
-    return this.updatePassword(user.id, newPassword);
-  }
-
-  async updatePassword(id: number, password: string) {
-    const user = await this.get(id, true);
-
-    const userUpdated = await this.prisma.users.update({
-      where: {
-        id,
-      },
-      data: {
-        password: bcrypt.hashSync(password, 10),
-      },
-    });
-
-    delete userUpdated.password;
-
-    await this.mailService.send({
-      to: user.email,
-      subject: 'Senha alterada com sucesso',
-      template: 'reset-password-confirm',
-      data: {
-        name: user.persons.name,
-      },
-    });
-
-    return userUpdated;
   }
 
   async getPhoto(id: number) {

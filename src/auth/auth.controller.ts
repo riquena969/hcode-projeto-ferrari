@@ -19,6 +19,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { parse } from 'date-fns';
+import { PasswordService } from 'src/user/password.service';
 import { User } from 'src/user/user.decorator';
 import { UserService } from 'src/user/user.service';
 import { AuthGuard } from './auth.guard';
@@ -28,6 +29,7 @@ import { AuthService } from './auth.service';
 export class AuthController {
   constructor(
     private userService: UserService,
+    private passwordService: PasswordService,
     private authService: AuthService,
   ) {}
 
@@ -98,7 +100,7 @@ export class AuthController {
     @Body('currentPassword') currentPassword: string,
     @Body('newPassword') newPassword: string,
   ) {
-    return this.userService.changePassword(
+    return this.passwordService.changePassword(
       user.id,
       currentPassword,
       newPassword,

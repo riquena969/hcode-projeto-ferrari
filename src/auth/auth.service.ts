@@ -14,11 +14,13 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { MailService } from 'src/mail/mail.service';
 import { join } from 'path';
 import { existsSync, renameSync, unlinkSync } from 'fs';
+import { PasswordService } from 'src/user/password.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
+    private passwordService: PasswordService,
     private mailService: MailService,
     private jwtService: JwtService,
     private prisma: PrismaService,
@@ -122,7 +124,10 @@ export class AuthService {
       },
     });
 
-    return this.userService.updatePassword(passwordRecovery.userId, password);
+    return this.passwordService.updatePassword(
+      passwordRecovery.userId,
+      password,
+    );
   }
 
   async setPhoto(id: number, file: Express.Multer.File) {
